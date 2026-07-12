@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ---------------------------------------------------------
+// BASE MODELS
+// ---------------------------------------------------------
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings            Booking[]
+  maintenanceRequests MaintenanceRequest[] @relation("Requester")
+  assignedMaintenance MaintenanceRequest[] @relation("Technician")
+  auditsAssigned      Audit[]
+  activityLogs        ActivityLog[]
+  notifications       Notification[]
+}
+
+model Asset {
+  id           String   @id @default(uuid())
+  name         String
+  serialNumber String?
+  status       String   @default("AVAILABLE")
+  location     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bookings     Booking[]
+  maintenance  MaintenanceRequest[]
+  auditItems   AuditItem[]
+  activityLogs ActivityLog[]
+}
+
+// ---------------------------------------------------------
+// MEMBER 3: OPERATIONAL WORKFLOWS
+// ---------------------------------------------------------
+
+model Booking {
+  id        String   @id @default(uuid())
+  assetId   String
+  userId    String
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("PENDING")
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  asset Asset @relation(fields: [assetId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+}
+
+model MaintenanceRequest {
+  id           String    @id @default(uuid())
+  assetId      String
+  requesterId  String
+  technicianId String?
+  status       String    @default("PENDING_APPROVAL")
+  issue        String
+  resolution   String?
+  cost         Float?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  resolvedAt   DateTime?
+
+  asset      Asset  @relation(fields: [assetId], references: [id])
+  requester  User   @relation("Requester", fields: [requesterId], references: [id])
+  technician User?  @relation("Technician", fields: [technicianId], references: [id])
+}
+
+model Audit {
+  id        String    @id @default(uuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime?
+  status    String    @default("IN_PROGRESS")
+  auditorId String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closedAt  DateTime?
+
+  auditor User        @relation(fields: [auditorId], references: [id])
+  items   AuditItem[]
+}
+
+model AuditItem {
+  id              String    @id @default(uuid())
+  auditId         String
+  assetId         String
+  status          String    @default("UNVERIFIED")
+  notes           String?
+  discrepancyType String?
+  verifiedAt      DateTime?
+
+  audit Audit @relation(fields: [auditId], references: [id])
+  asset Asset @relation(fields: [assetId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  assetId     String?
+  action      String
+  description String
+  createdAt   DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id])
+  asset Asset? @relation(fields: [assetId], references: [id])
+}
